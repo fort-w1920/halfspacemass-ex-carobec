@@ -9,8 +9,6 @@
 #Machine Learning, 100(2):677–699 [pdf]
 #Link: http://scheipl.userweb.mwn.de//downloads/fortprog/ChenEtAl-HalfspaceMass-MachLearn2015.pdf7
 
-
-
 ################################################################################
 #---------------------- train depth -----------------------------------------
 ################################################################################
@@ -38,15 +36,17 @@
 #(input for evaluate depth!)
 train_depth <- function(data, n_halfspace, subsample = 1, scope = 1, seed = 1233){
   #input check 
-  
   checkmate::assert(checkmate::test_data_frame(data), checkmate::test_matrix(data), combine = "or")
   data <- as.matrix(data)
   checkmate::assert_count(n_halfspace)
   checkmate::assert_number(subsample, lower = 0, upper = 1) 
   checkmate::assert_numeric(scope)
   checkmate::assert_number(seed)
-
-  #matrix 
+  
+  #set seed
+  set.seed(seed)
+  
+  #empty list 
   halfspace <- list()
 
   #get halfspaces with random direction, random point, mass left and mass right 
@@ -105,7 +105,7 @@ get_sample_data <- function(data, subsample){
   #get a sample of the data with subsample
   no_data <- nrow(data)
   size <- subsample*no_data
-  sample <- sample(x = no_data, size = size)
+  sample <- sample(x = no_data, size = size, replace = FALSE)
   
   data[sample,]
 }
@@ -126,11 +126,13 @@ get_random_point <- function(projection, scope){
   projection_mid <- (projection_min + projection_max)/2
   
   #randomly select points (s_i) in a certain intervall (mid_i +- (max_i - min_i))
-  intervall_length <- scope / (projection_max - projection_min)
+  intervall_length <- scope * (projection_max - projection_min)
+  intervall_min <- projection_mid - 0.5 * intervall_length
+  intervall_max <- projection_mid + 0.5 * intervall_length
   
   #get one of a uniformed distribution; randomly select a point 
   #uniform distribution: one observation, with minimum and maximum 
-  runif( n = 1, min = projection_mid - 0.5 * intervall_length, max = projection_mid + 0.5 * intervall_length)
+  runif( n = 1, min = intervall_min, max = intervall_max)
 }
 
 
@@ -143,7 +145,7 @@ get_random_point <- function(projection, scope){
 
 #Input:
 #data: training data (zi, i = 1, ... ,n)
-#halfspaces: 
+#halfspaces: result from train_depth
 #metric "mass"
 
 #Task: 
@@ -173,7 +175,8 @@ evaluate_depth <- function(data, halfspaces, metric = c("mass", "depth")){
 
 #-------------------------------------------------------------------------------
 evaluate_one_halfspace <- function(halfspace, data){
-  
+
+  #get the values of the halfspace (train_depth)
   random_direction <-  halfspace$random_direction
   random_point <-  halfspace$random_point
   mass_left <-  halfspace$mass_left
@@ -182,6 +185,7 @@ evaluate_one_halfspace <- function(halfspace, data){
   #project  x onto random direction
   projection <- get_projection(data, random_direction)
   
+  #if the prjection is smaller, return mass left, else: mass right.
   halfmass <- ifelse(
     projection < random_point,
     mass_left,
