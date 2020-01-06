@@ -34,31 +34,29 @@
 #and then the number of points that fall in either sides of s are recorded.
 
 #Output: 
-#halfspaces with direction, points and borders left and right (input for evaluate depth!)
-train_depth <- function(data, n_halfspace, subsample = 1, scope = 1, seed){
+#halfspaces with direction, points and borders left and right 
+#(input for evaluate depth!)
+train_depth <- function(data, n_halfspace, subsample = 1, scope = 1, seed = 1233){
   #input check 
   
-  checkmate::assert_data_frame(data)
+  checkmate::assert(checkmate::test_data_frame(data), checkmate::test_matrix(data), combine = "or")
+  data <- as.matrix(data)
   checkmate::assert_count(n_halfspace)
-  checkmate::assert_number(subsample, lower = 0, upper = 1)##offenes oder geschlossenes Intervall? 
- # checkmate::assert
+  checkmate::assert_number(subsample, lower = 0, upper = 1) 
+  checkmate::assert_numeric(scope)
   checkmate::assert_number(seed)
-  
- 
-  
+
   #matrix 
   halfspace <- list()
 
   #get halfspaces with random direction, random point, mass left and mass right 
   #for i = 1, ... , number of halfspaces
   for (i in seq_len(n_halfspace)) {
-    halfspace[[i]] <- get_halfspace(data,subsample, scope)
+    halfspace[[i]] <- get_halfspace(data, subsample, scope)
   }
   
   #return list with length n_halfspace
   halfspace
-  
-  
 }
 
 #---------------------------SUBFUNCTIONS train depth----------------------------
@@ -91,17 +89,10 @@ get_halfspace <- function(data, subsample, scope){
   )
 }
 
-#euklidean norm 
-get_normalized <- function(vector){
-  vector/sqrt(sum(vector^2))
-}
-
-#generate a normalized sample direction (vector) with in the dimensions
+#generate a  sample direction (vector) with in the dimensions
 generate_random_direction <- function(dimension){
   #generate a vector with normal distributed dimensions
-  direction <- as.vector(rnorm(dimension))
-  #normalized vector
-  get_normalized(direction)
+  as.vector(rnorm(dimension))
 }
 
 #get subsample without replacement
@@ -114,15 +105,14 @@ get_sample_data <- function(data, subsample){
   #get a sample of the data with subsample
   no_data <- nrow(data)
   size <- subsample*no_data
-  sample <- sample(x = no_data, size = size, replace = FALSE)
+  sample <- sample(x = no_data, size = size)
   
   data[sample,]
 }
 
 #project data points on direction
 get_projection <- function(data, direction){
-  unnormalized_projection <- as.matrix(data) %*% direction
-  get_normalized(unnormalized_projection)
+  as.matrix(data) %*% direction
 }
 
 get_random_point <- function(projection, scope){
@@ -140,11 +130,8 @@ get_random_point <- function(projection, scope){
   
   #get one of a uniformed distribution; randomly select a point 
   #uniform distribution: one observation, with minimum and maximum 
-  runif(1, projection_mid - 0.5 * intervall_length, projection_mid + 0.5 * intervall_length)
+  runif( n = 1, min = projection_mid - 0.5 * intervall_length, max = projection_mid + 0.5 * intervall_length)
 }
-
-#
-
 
 
 #----------------------End SUBFUNCTIONS train depth ----------------------------
@@ -173,21 +160,14 @@ evaluate_depth <- function(data, halfspaces, metric = c("mass", "depth")){
   metric <- match.arg(tolower(metric), c("mass", "depth"))
   
   #halfspacemasses
-  halfspacemasses <- sapply(halfspaces, evaluate_one_halfspace, data)
-  
- # halfspacemasses <- data
-  #for (i in seq_along(halfspaces)) {
-  #  halfspacemasses[[i]] <- evaluate_one_halfspace(halfspaces[[i]], data)
- # }
-  
+  halfspaces <- sapply(halfspaces, evaluate_one_halfspace, data)
   
   #data mass: expected value
-  if (metric == "mass") return(rowMeans(halfspacemasses)) #--> early exit!
+  if (metric == "mass") return(rowMeans(halfspaces)) #--> early exit!
 
   # data depth: minimum of the masses
-  #MARGIN = 1 indicates rows
-  halfspace_depth <- sapply(halfspacemasses, MARGIN = 1, FUN = min)
-  halfspace_depth
+  #MARGIN = 1 indicates minimum per row
+  apply(halfspaces, MARGIN = 1, FUN = min)
 }
 
 
@@ -202,16 +182,12 @@ evaluate_one_halfspace <- function(halfspace, data){
   #project  x onto random direction
   projection <- get_projection(data, random_direction)
   
-  #set hm to 0
-  halfmass <- rep(0,nrow(projection))
-  for (i in seq_len(nrow(projection))) {
-    #if it is smaller than s_i
-    if (projection[[i]] < random_point) {
-      halfmass[[i]] <- mass_left
-    }else{
-      halfmass[[i]] <- mass_right
-    }
-  }
-  halfmass
+  halfmass <- ifelse(
+    projection < random_point,
+    mass_left,
+    mass_right
+  )
+  
+  halfmass 
 }
 
