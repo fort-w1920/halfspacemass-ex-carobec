@@ -8,29 +8,30 @@ theme_set(theme_minimal())
 #   metric: argument for evaluate_depth
 plot_depth <- function(halfspaces, data, grid = NULL, points = TRUE,
                        gridlength = 70, metric = "mass") {
-  
-  #(data_fig3, n_halfspace = 1e3, scope = 1.5, seed = 4163)
-  #plot_depth(depth_fig3_scope15,data = data_fig3, grid = grid_fig3,metric = "depth")
-  
-  
+
+  # (data_fig3, n_halfspace = 1e3, scope = 1.5, seed = 4163)
+  # plot_depth(depth_fig3_scope15,data = data_fig3, grid = grid_fig3,metric = "depth")
+
+
   if (is.null(grid)) {
     range_1 <- range(data$z1)
     range_2 <- range(data$z2)
     grid <- expand.grid(
-      z1 = seq(range_1[1] - .2 * diff(range_1), 
-               range_1[2] + .2 * diff(range_1),
-               length = gridlength
+      z1 = seq(range_1[1] - .2 * diff(range_1),
+        range_1[2] + .2 * diff(range_1),
+        length = gridlength
       ),
-      z2 = seq(range_2[1] - .2 * diff(range_2), 
-               range_2[2] + .2 * diff(range_2),
-               length = gridlength
+      z2 = seq(range_2[1] - .2 * diff(range_2),
+        range_2[2] + .2 * diff(range_2),
+        length = gridlength
       )
     )
   }
   grid_depth <- evaluate_depth(
-    data = as.matrix(grid), 
-    halfspaces = halfspaces, 
-    metric = metric)
+    data = as.matrix(grid),
+    halfspaces = halfspaces,
+    metric = metric
+  )
   grid_halfspaces <- cbind(grid, depth = grid_depth)
   # use colors as in Chen et al.:
   spectralcolors <- c(
@@ -40,13 +41,15 @@ plot_depth <- function(halfspaces, data, grid = NULL, points = TRUE,
   p <- ggplot(grid_halfspaces, aes(x = z1, y = z2)) +
     geom_tile(aes(fill = depth, colour = depth)) +
     scale_fill_gradientn(metric, colors = spectralcolors) +
-    scale_colour_gradientn(metric, colors = spectralcolors)  
-  
+    scale_colour_gradientn(metric, colors = spectralcolors)
+
   if (points & !is.null(data)) {
     p <- p +
-      geom_point(data = data, 
-                 aes(x = z1, y = z2), 
-                 colour = rgb(1, 1, 1, .8))
+      geom_point(
+        data = data,
+        aes(x = z1, y = z2),
+        colour = rgb(1, 1, 1, .8)
+      )
   }
   p
 }
@@ -60,19 +63,25 @@ plot_depth <- function(halfspaces, data, grid = NULL, points = TRUE,
 
 library(gridExtra)
 data_fig3 <- data.frame(z1 = c(-2, -.5, .5, 2), z2 = 0)
-grid_fig3 <- expand.grid(z1 = seq(-3, 3, l = 51), 
-                         z2 = seq(-3, 3, l = 51))
+grid_fig3 <- expand.grid(
+  z1 = seq(-3, 3, l = 51),
+  z2 = seq(-3, 3, l = 51)
+)
 
-depth_fig3 <- train_depth(data_fig3, n_halfspace = 1e4, 
-                          scope = 1, seed = 4163)
+depth_fig3 <- train_depth(data_fig3,
+  n_halfspace = 1e4,
+  scope = 1, seed = 4163
+)
 # need scope > 1 for reliable halfspace _depth_ approximation:
 depth_fig3_scope15 <- train_depth(data_fig3,
-                                  n_halfspace = 1e3, scope = 1.5,
-                                  seed = 4163)
+  n_halfspace = 1e3, scope = 1.5,
+  seed = 4163
+)
 gridExtra::grid.arrange(
   plot_depth(depth_fig3_scope15,
-             data = data_fig3, grid = grid_fig3,
-             metric = "depth") +
+    data = data_fig3, grid = grid_fig3,
+    metric = "depth"
+  ) +
     ggtitle("Tukey Halfspace Depth"),
   plot_depth(depth_fig3, data = data_fig3, grid = grid_fig3) +
     ggtitle("Halfspace Mass (Chen et al.)"),
@@ -84,7 +93,7 @@ gridExtra::grid.arrange(
 set.seed(187471431)
 # 2D standard Normal:
 cluster <- data.frame(
-  z1 = rnorm(50) / 2, 
+  z1 = rnorm(50) / 2,
   z2 = rnorm(50) / 2,
   group = "cluster"
 )
@@ -96,22 +105,24 @@ left_anomalies <- data.frame(
 # convert to cartesian coords
 left_anomalies <- with(left_anomalies, data.frame(
   z1 = length * cos(angle),
-  z2 = length * sin(angle), 
+  z2 = length * sin(angle),
   group = "anomaly"
 ))
 # ~ N_2(\mu = (6,0), \Sigma = I_2)
 right_anomalies <- data.frame(
-  z1 = rnorm(20) / 5 + 6, 
+  z1 = rnorm(20) / 5 + 6,
   z2 = rnorm(20) / 5,
   group = "anomaly"
 )
-data_fig5 <- rbind(cluster, 
-                   left_anomalies, 
-                   right_anomalies)
+data_fig5 <- rbind(
+  cluster,
+  left_anomalies,
+  right_anomalies
+)
 
 hs_fig5 <- train_depth(data_fig5[, 1:2],
-                       n_halfspace = 1e4, subsample = .5,
-                       seed = 4165
+  n_halfspace = 1e4, subsample = .5,
+  seed = 4165
 )
 fig5 <- plot_depth(hs_fig5, data = data_fig5[, 1:2], points = FALSE)
 # can't assign two colour scales to one plot, so plot 2 groups separately:
@@ -124,5 +135,3 @@ fig5 +
     data = subset(data_fig5, group == "anomaly"),
     aes(x = z1, y = z2), color = rgb(1, 0, 0, .5)
   )
-
-
